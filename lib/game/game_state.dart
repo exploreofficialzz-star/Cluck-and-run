@@ -124,7 +124,7 @@ class GameState {
   }
 
   // ── Derived helpers ────────────────────────────────────────────────────────
-  double get angerLevel => math.max(0, 1 - (farmerGap - kFarmerMinGap) / (kFarmerInitGap - kFarmerMinGap)).clamp(0, 1);
+  double get angerLevel => (math.max(0.0, 1.0 - (farmerGap - kFarmerMinGap) / (kFarmerInitGap - kFarmerMinGap))).clamp(0.0, 1.0).toDouble();
   bool   get isInvincible => invincibleFrames > 0;
   bool   get isNewHighScore => score.toInt() > highScore;
 }
