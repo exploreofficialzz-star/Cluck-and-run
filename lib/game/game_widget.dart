@@ -55,7 +55,7 @@ class GameWidgetState extends State<GameWidget> with SingleTickerProviderStateMi
 
   void _onTick() {
     final now = _ticker.lastElapsedDuration?.inMicroseconds.toDouble() ?? 0;
-    final dt  = math.min((now - _lastTime) / 1_000_000, 0.05); // cap at 50ms
+    final dt = math.min((now - _lastTime) / 1000000.0, 0.05);// cap at 50ms
     _lastTime = now;
 
     if (_state.phase == GamePhase.playing) {
