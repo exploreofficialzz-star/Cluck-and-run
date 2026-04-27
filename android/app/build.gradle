@@ -22,7 +22,7 @@ if (localPropertiesFile.exists()) {
 
 android {
     namespace "com.chastech.cluckandrun"
-    compileSdk flutter.compileSdkVersion
+    compileSdk 35
     ndkVersion flutter.ndkVersion
 
     compileOptions {
@@ -50,7 +50,7 @@ android {
     defaultConfig {
         applicationId   "com.chastech.cluckandrun"
         minSdkVersion   21
-        targetSdkVersion flutter.compileSdkVersion
+        targetSdkVersion 35
         versionCode     localProperties.getProperty("flutter.versionCode")?.toInteger() ?: 1
         versionName     localProperties.getProperty("flutter.versionName") ?: "1.0.0"
         multiDexEnabled true
