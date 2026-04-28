@@ -12,9 +12,17 @@ if (keystorePropertiesFile.exists()) {
     }
 }
 
+def localProperties = new Properties()
+def localPropertiesFile = rootProject.file("local.properties")
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.withReader("UTF-8") { reader ->
+        localProperties.load(reader)
+    }
+}
+
 android {
     namespace "com.chastech.cluckandrun"
-    compileSdk flutter.compileSdkVersion
+    compileSdk 35
     ndkVersion flutter.ndkVersion
 
     compileOptions {
@@ -42,9 +50,9 @@ android {
     defaultConfig {
         applicationId   "com.chastech.cluckandrun"
         minSdkVersion   21
-        targetSdkVersion flutter.targetSdkVersion
-        versionCode     flutter.versionCode
-        versionName     flutter.versionName
+        targetSdkVersion 35
+        versionCode     localProperties.getProperty("flutter.versionCode")?.toInteger() ?: 1
+        versionName     localProperties.getProperty("flutter.versionName") ?: "1.0.0"
         multiDexEnabled true
     }
 
