@@ -1,5 +1,5 @@
 name: cluck_and_run
-description: Cluck & Run — An endless runner where a chicken escapes a hungry farmer!
+description: Cluck & Run — Endless runner where a chicken escapes a hungry farmer!
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -9,25 +9,11 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-
-  # Game Engine
-  flame: ^1.17.0
-
-  # Ads
   google_mobile_ads: ^4.0.0
-
-  # Local Storage (high scores, prefs)
   shared_preferences: ^2.2.3
-
-  # Notifications
   flutter_local_notifications: ^17.2.1+2
   timezone: ^0.9.4
-
-  # Audio
   audioplayers: ^6.0.0
-
-  # App lifecycle & utils
-  flutter_native_splash: ^2.4.0
   app_tracking_transparency: ^2.0.6
 
 dev_dependencies:
@@ -37,13 +23,6 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-
   assets:
     - assets/audio/
-
-flutter_native_splash:
-  color: "#0D1117"
-  color_dark: "#0D1117"
-  image: assets/icon/splash_icon.png
-  android: true
-  ios: true
+    - assets/images/

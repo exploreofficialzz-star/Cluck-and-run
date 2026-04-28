@@ -1,130 +1,87 @@
 // lib/game/game_state.dart
-// Pure data model for the game. No Flutter dependencies.
-
 import 'dart:math' as math;
 import '../utils/constants.dart';
 
 enum GamePhase { menu, playing, dead, paused }
-
-// ── Obstacle types ────────────────────────────────────────────────────────────
-enum ObstacleKind { hayBale, fence, pumpkin, doubleBale }
+enum ObstacleType { hayBale, fence, pumpkinPair, barrier }
+enum PowerUpType { magnet, shield, scoreX2 }
 
 class Obstacle {
-  double x;
-  final ObstacleKind kind;
-  final double width;
-  final double height;
-  final double? gapHeight; // only for fence (slide under)
-
-  Obstacle({
-    required this.x,
-    required this.kind,
-    required this.width,
-    required this.height,
-    this.gapHeight,
-  });
+  double y; final int lane; final ObstacleType type; final double height;
+  bool passed = false;
+  Obstacle({required this.y, required this.lane, required this.type, required this.height});
 }
 
 class CoinItem {
-  double x;
-  final double y; // y relative to groundY
-  bool collected;
-  CoinItem({required this.x, required this.y, this.collected = false});
+  double y; final int lane; bool collected = false;
+  CoinItem({required this.y, required this.lane});
 }
 
-class BgElement {
-  double x;
-  final double y;
-  final int layer;      // 0=far, 1=mid, 2=near
-  final String type;    // 'tree', 'barn', 'bush'
-  BgElement({required this.x, required this.y, required this.layer, required this.type});
+class BonusBird {
+  double x; double y; final double speed; final int coins; bool collected = false;
+  BonusBird({required this.x, required this.y, required this.speed, required this.coins});
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+class PowerUp {
+  double y; final int lane; final PowerUpType type; bool collected = false;
+  PowerUp({required this.y, required this.lane, required this.type});
+}
+
 class GameState {
-  // Phase
-  GamePhase phase = GamePhase.menu;
+  GamePhase phase   = GamePhase.menu;
+  double score      = 0;
+  int    coins      = 0;
+  int    highScore  = 0;
+  int    multiplier = 1;
+  double speed      = kInitialSpeed;
 
-  // Scoring
-  double score = 0;
-  int    coins = 0;
-  int    highScore = 0;
+  int    currentLane   = 1;
+  int    targetLane    = 1;
+  double laneSwitchT   = 1.0;
+  double laneX         = 0;
 
-  // Player physics
-  double playerY     = 0; // offset from groundY (0 = on ground)
-  double velocityY   = 0;
-  bool   isJumping   = false;
-  bool   isSliding   = false;
-  int    slideFrames = 0;
+  double playerYOffset = 0;
+  double velocityY     = 0;
+  bool   isJumping     = false;
+  bool   isSliding     = false;
+  int    slideFrames   = 0;
   int    invincibleFrames = 0;
 
-  // World
-  double scrollOffset = 0;
-  double speed        = kInitialSpeed; // px/s
+  double bgScrollY     = 0;
+  int    animFrame     = 0;
+  double animT         = 0;
+  double farmerScale   = kFarmerInitScale;
 
-  // Farmer gap (in px, measured from player)
-  double farmerGap = kFarmerInitGap;
+  double nextObsIn     = 1.5;
+  double nextCoinIn    = 0.8;
+  double nextBirdIn    = kBirdInterval;
+  double nextPowerUpIn = 8.0;
+  double cluckTimer    = 0;
 
-  // Timers (in seconds)
-  double nextObstacleIn = 1.2;
-  double nextCoinIn     = 0.8;
-  double bgElementIn    = 1.4;
+  bool   magnetActive  = false; int magnetFrames = 0;
+  bool   shieldActive  = false; int shieldFrames = 0;
+  bool   x2Active      = false; int x2Frames     = 0;
+  bool   reviveUsed    = false;
 
-  // Lists
   final obstacles  = <Obstacle>[];
   final coinItems  = <CoinItem>[];
-  final bgElements = <BgElement>[];
+  final bonusBirds = <BonusBird>[];
+  final powerUps   = <PowerUp>[];
 
-  // Animations
-  int animFrame = 0;
-  double bgAnimT = 0; // for sun pulsing, etc.
+  bool   get isInvincible => invincibleFrames > 0 || shieldActive;
+  double get farmerDanger  => ((farmerScale - kFarmerInitScale) /
+      (kFarmerMaxScale - kFarmerInitScale)).clamp(0.0, 1.0);
 
-  // One-use flags per run
-  bool reviveUsed = false;
-
-  // ─────────────────────────────────────────────────────────────────────────────
-  void reset({int savedHighScore = 0}) {
-    phase            = GamePhase.playing;
-    score            = 0;
-    coins            = 0;
-    highScore        = savedHighScore;
-    playerY          = 0;
-    velocityY        = 0;
-    isJumping        = false;
-    isSliding        = false;
-    slideFrames      = 0;
-    invincibleFrames = 0;
-    scrollOffset     = 0;
-    speed            = kInitialSpeed;
-    farmerGap        = kFarmerInitGap;
-    nextObstacleIn   = 1.2;
-    nextCoinIn       = 0.8;
-    bgElementIn      = 1.4;
-    animFrame        = 0;
-    bgAnimT          = 0;
-    reviveUsed       = false;
-    obstacles.clear();
-    coinItems.clear();
-    bgElements.clear();
-    _initBgElements();
+  void reset({int savedHi = 0}) {
+    phase = GamePhase.playing; score = 0; coins = 0; highScore = savedHi;
+    multiplier = 1; speed = kInitialSpeed;
+    currentLane = 1; targetLane = 1; laneSwitchT = 1.0; laneX = 0;
+    playerYOffset = 0; velocityY = 0; isJumping = false; isSliding = false;
+    slideFrames = 0; invincibleFrames = 0; bgScrollY = 0; animFrame = 0; animT = 0;
+    farmerScale = kFarmerInitScale; nextObsIn = 1.5; nextCoinIn = 0.8;
+    nextBirdIn = kBirdInterval; nextPowerUpIn = 8.0; cluckTimer = 0;
+    magnetActive = false; magnetFrames = 0; shieldActive = false; shieldFrames = 0;
+    x2Active = false; x2Frames = 0; reviveUsed = false;
+    obstacles.clear(); coinItems.clear(); bonusBirds.clear(); powerUps.clear();
   }
-
-  void _initBgElements() {
-    final rng = math.Random();
-    const types = ['tree', 'tree', 'barn', 'bush'];
-    for (int i = 0; i < 14; i++) {
-      final layer = rng.nextInt(3);
-      bgElements.add(BgElement(
-        x:     i * 88.0 + rng.nextDouble() * 30,
-        y:     0,
-        layer: layer,
-        type:  types[rng.nextInt(types.length)],
-      ));
-    }
-  }
-
-  // ── Derived helpers ────────────────────────────────────────────────────────
-  double get angerLevel => (math.max(0.0, 1.0 - (farmerGap - kFarmerMinGap) / (kFarmerInitGap - kFarmerMinGap))).clamp(0.0, 1.0).toDouble();
-  bool   get isInvincible => invincibleFrames > 0;
-  bool   get isNewHighScore => score.toInt() > highScore;
 }
