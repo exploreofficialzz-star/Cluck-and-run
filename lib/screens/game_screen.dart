@@ -1,4 +1,4 @@
-// lib/screens/game_screen.dart
+// lib/screens/game_screen.dart — aggressive but professional ad wiring
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
@@ -17,10 +17,11 @@ class GameScreen extends StatefulWidget {
 }
 
 class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
-  final _gameKey = GlobalKey<GameWidgetState>();
-  bool _showGameOver = false;
-  bool _showPause    = false;
-  bool _isNewRecord  = false;
+  final _gameKey       = GlobalKey<GameWidgetState>();
+  bool  _showGameOver  = false;
+  bool  _showPause     = false;
+  bool  _isNewRecord   = false;
+  int   _runCount      = 0;  // track runs this session for aggressive ads
 
   @override
   void initState() {
@@ -37,35 +38,62 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     if (s == AppLifecycleState.resumed) AudioService.instance.resumeBgMusic();
   }
 
-  void _onDied() async {
+  // ── GAME EVENTS ─────────────────────────────────────────────────────────────
+  Future<void> _onDied() async {
     AudioService.instance.playDie();
-    AdService.instance.onPlayerDied();
+    _runCount++;
+
     final gs = _gameKey.currentState?.gameState;
     if (gs == null) return;
+
+    // Save progress
     _isNewRecord = await StorageService.saveHighScore(gs.score.toInt());
     await StorageService.addCoins(gs.coins);
     await StorageService.incrementRuns();
     await StorageService.updateStreak();
+
+    // ── AGGRESSIVE AD STRATEGY ─────────────────────────────────────────────
+    // Every death shows game over → rewarded offer (highest revenue)
+    // Every 2nd death without revive → interstitial fires automatically
+    AdService.instance.onPlayerDied();
+
     if (mounted) setState(() => _showGameOver = true);
   }
 
   void _onRestart() {
     setState(() { _showGameOver = false; _showPause = false; });
+    // Pre-load next rewarded ad immediately after restart
     _gameKey.currentState?.startNewGame();
   }
 
   void _onRevive() {
-    if (!AdService.instance.isRewardedReady) { _doRevive(); return; }
-    AdService.instance.showRewarded(onEarned: () { AudioService.instance.playRevive(); _doRevive(); }, onFailed: _doRevive);
+    // Show rewarded ad → player keeps running
+    if (!AdService.instance.isRewardedReady) {
+      // Fallback: give 1 free revive if ad not ready (good UX, retain player)
+      _doRevive();
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('🎁 Free revive — ad unavailable!'),
+        backgroundColor: kColGreen, duration: Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+      ));
+      return;
+    }
+    AdService.instance.showRewarded(
+      onEarned: () { AudioService.instance.playRevive(); _doRevive(); },
+      onFailed: _doRevive,
+    );
   }
 
   void _onDoubleCoins() {
     final gs = _gameKey.currentState?.gameState;
     if (gs == null) { setState(() => _showGameOver = false); return; }
-    if (!AdService.instance.isRewardedReady) { setState(() => _showGameOver = false); return; }
+    if (!AdService.instance.isRewardedReady) {
+      setState(() => _showGameOver = false);
+      return;
+    }
     AdService.instance.showRewarded(
       onEarned: () async {
-        await StorageService.addCoins(gs.coins);
+        await StorageService.addCoins(gs.coins); // bonus coins
         if (mounted) setState(() => _showGameOver = false);
       },
       onFailed: () => setState(() => _showGameOver = false),
@@ -106,55 +134,70 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     final gs     = _gameKey.currentState?.gameState;
 
     return Scaffold(
-      backgroundColor: kColDark,
+      backgroundColor: Colors.black,
       body: SafeArea(
-        child: Stack(
-          children: [
-            Column(children: [
-              Expanded(child: GameWidget(
-                key:              _gameKey,
-                savedHighScore:   StorageService.highScore,
-                onDied:           _onDied,
-                onCoinCollected:  () => AudioService.instance.playCoin(),
-                onBonusBird:      () => AudioService.instance.playBonus(),
-                onJump:           () => AudioService.instance.playJump(),
-                onCluck:          () => AudioService.instance.playCluck(),
-              )),
-              if (banner != null)
-                SizedBox(width: banner.size.width.toDouble(), height: banner.size.height.toDouble(),
-                    child: AdWidget(ad: banner))
-              else
-                const SizedBox(height: 50),
-            ]),
+        child: Stack(children: [
+          // ── Main game column ───────────────────────────────────────────────
+          Column(children: [
+            Expanded(child: GameWidget(
+              key:             _gameKey,
+              savedHighScore:  StorageService.highScore,
+              onDied:          _onDied,
+              onCoinCollected: () => AudioService.instance.playCoin(),
+              onBonusBird:     () => AudioService.instance.playBonus(),
+              onJump:          () => AudioService.instance.playJump(),
+              onCluck:         () => AudioService.instance.playCluck(),
+            )),
 
-            // Pause button
-            Positioned(top: 10, right: 12,
-              child: GestureDetector(
-                onTap: _pauseGame,
-                child: Container(
-                  width: 40, height: 40,
-                  decoration: BoxDecoration(color: Colors.black45,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.white12)),
-                  child: const Icon(Icons.pause_rounded, color: Colors.white70, size: 22),
+            // ── Banner Ad (always visible during gameplay) ─────────────────
+            if (banner != null)
+              Container(
+                width:  banner.size.width.toDouble(),
+                height: banner.size.height.toDouble(),
+                color:  Colors.black,
+                child:  AdWidget(ad: banner),
+              )
+            else
+              Container(height: 52, color: Colors.black,
+                child: const Center(child: Text('Advertisement',
+                    style: TextStyle(color: Colors.white12, fontSize: 10)))),
+          ]),
+
+          // ── Pause button ────────────────────────────────────────────────────
+          Positioned(top: 10, right: 10,
+            child: GestureDetector(
+              onTap: _pauseGame,
+              child: Container(
+                width: 42, height: 42,
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.50),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.white.withOpacity(0.15)),
                 ),
+                child: const Icon(Icons.pause_rounded, color: Colors.white70, size: 22),
               ),
             ),
+          ),
 
-            if (_showGameOver && gs != null)
-              GameOverOverlay(
-                score: gs.score.toInt(), coins: gs.coins,
-                highScore: StorageService.highScore,
-                isNewRecord: _isNewRecord, reviveUsed: gs.reviveUsed,
-                rewardedReady: AdService.instance.isRewardedReady,
-                onRevive: _onRevive, onDoubleCoins: _onDoubleCoins,
-                onRestart: _onRestart, onHome: _exitToMenu,
-              ),
+          // ── Game Over overlay ───────────────────────────────────────────────
+          if (_showGameOver && gs != null)
+            GameOverOverlay(
+              score:         gs.score.toInt(),
+              coins:         gs.coins,
+              highScore:     StorageService.highScore,
+              isNewRecord:   _isNewRecord,
+              reviveUsed:    gs.reviveUsed,
+              rewardedReady: AdService.instance.isRewardedReady,
+              onRevive:      _onRevive,
+              onDoubleCoins: _onDoubleCoins,
+              onRestart:     _onRestart,
+              onHome:        _exitToMenu,
+            ),
 
-            if (_showPause)
-              PauseOverlay(onResume: _resumeGame, onRestart: _onRestart, onHome: _exitToMenu),
-          ],
-        ),
+          // ── Pause overlay ───────────────────────────────────────────────────
+          if (_showPause)
+            PauseOverlay(onResume: _resumeGame, onRestart: _onRestart, onHome: _exitToMenu),
+        ]),
       ),
     );
   }

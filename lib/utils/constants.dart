@@ -68,8 +68,8 @@ const kColGold  = Color(0xFFFFB300);
 
 // ── Assets ───────────────────────────────────────────────────────────────────
 const kImgChicken   = 'assets/images/chicken_sprite.png';
-const kImgFarmer    = 'assets/images/farmer_sprite.png';
-const kImgFarmBg    = 'assets/images/farm_bg_tile.jpg';
+const kImgFarmer    = 'assets/images/farmer_nobg.png';
+const kImgFarmBg    = 'assets/images/road_bg.jpg';
 const kImgCoin      = 'assets/images/coin.png';
 const kImgBonusBird = 'assets/images/bonus_bird.png';
 
