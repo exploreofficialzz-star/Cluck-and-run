@@ -85,7 +85,7 @@ class _State extends State<GameOverOverlay> with TickerProviderStateMixin {
                     ? 'The farmer caught you — but you crushed your record!'
                     : 'The farmer got you. Run faster next time! 🏃',
                   textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.white45, fontSize: 12),
+                  style: TextStyle(color: Colors.white.withOpacity(0.45), fontSize: 12),
                 ),
                 const SizedBox(height: 18),
 
