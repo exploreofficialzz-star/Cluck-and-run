@@ -9,42 +9,36 @@ class GameOverOverlay extends StatefulWidget {
   const GameOverOverlay({super.key,
     required this.score, required this.coins, required this.highScore,
     required this.isNewRecord, required this.reviveUsed, required this.rewardedReady,
-    required this.onRevive, required this.onDoubleCoins,
-    required this.onRestart, required this.onHome});
+    required this.onRevive, required this.onDoubleCoins, required this.onRestart, required this.onHome});
   @override State<GameOverOverlay> createState() => _State();
 }
 
 class _State extends State<GameOverOverlay> with TickerProviderStateMixin {
   late AnimationController _entry, _pulse;
-  late Animation<double> _scale, _fade, _pulseS;
+  late Animation<double> _scale, _fade, _pulseA;
 
   @override
   void initState() {
     super.initState();
     _entry = AnimationController(vsync:this, duration:const Duration(milliseconds:400));
-    _pulse = AnimationController(vsync:this, duration:const Duration(milliseconds:800))
-      ..repeat(reverse:true);
+    _pulse = AnimationController(vsync:this, duration:const Duration(milliseconds:800))..repeat(reverse:true);
     _scale = CurvedAnimation(parent:_entry, curve:Curves.elasticOut);
     _fade  = CurvedAnimation(parent:_entry, curve:Curves.easeIn);
-    _pulseS= Tween<double>(begin:0.95,end:1.0)
-        .animate(CurvedAnimation(parent:_pulse, curve:Curves.easeInOut));
+    _pulseA= Tween<double>(begin:0.9,end:1.0).animate(_pulse);
     _entry.forward();
   }
-
   @override void dispose() { _entry.dispose(); _pulse.dispose(); super.dispose(); }
 
   String _fmt(int n) =>
-      n.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m)=>'${m[1]},');
+      n.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),(m)=>'${m[1]},');
 
   @override
   Widget build(BuildContext context) {
-    return FadeTransition(
-      opacity: _fade,
+    return FadeTransition(opacity: _fade,
       child: Container(
         color: Colors.black.withOpacity(0.82),
         child: Center(
-          child: ScaleTransition(
-            scale: _scale,
+          child: ScaleTransition(scale: _scale,
             child: Container(
               width: 330,
               margin: const EdgeInsets.symmetric(horizontal: 20),
@@ -63,16 +57,12 @@ class _State extends State<GameOverOverlay> with TickerProviderStateMixin {
               ),
               padding: const EdgeInsets.fromLTRB(22, 24, 22, 20),
               child: Column(mainAxisSize: MainAxisSize.min, children: [
-
-                // Chicken image header
-                Image.asset('assets/images/chicken_sprite.png',
-                    width: 72, height: 72, errorBuilder: (_,__,___) =>
-                    const Text('🐔', style: TextStyle(fontSize: 56))),
+                // ── Header ───────────────────────────────────────────────────
+                Image.asset('assets/images/chicken_sprite.png', width: 72, height: 72),
                 const SizedBox(height: 8),
 
-                // Title
                 if (widget.isNewRecord)
-                  ScaleTransition(scale: _pulseS,
+                  ScaleTransition(scale: _pulseA,
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
                       decoration: BoxDecoration(
@@ -80,19 +70,16 @@ class _State extends State<GameOverOverlay> with TickerProviderStateMixin {
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: const Text('🎉 NEW RECORD!',
-                          style: TextStyle(color: Colors.black, fontSize: 16,
-                              fontWeight: FontWeight.w900)),
+                          style: TextStyle(color: Colors.black, fontSize: 16, fontWeight: FontWeight.w900)),
                     ),
                   )
                 else
                   Text('CAUGHT!', style: TextStyle(
-                    color: const Color(0xFFFF6B6B), fontSize: 30,
-                    fontWeight: FontWeight.w900,
+                    color: const Color(0xFFFF6B6B), fontSize: 30, fontWeight: FontWeight.w900,
                     shadows: [Shadow(blurRadius: 12, color: kColRed.withOpacity(0.5))],
                   )),
 
                 const SizedBox(height: 4),
-                // FIXED: removed const, used withOpacity correctly
                 Text(
                   widget.isNewRecord
                     ? 'The farmer caught you — but you crushed your record!'
@@ -102,21 +89,21 @@ class _State extends State<GameOverOverlay> with TickerProviderStateMixin {
                 ),
                 const SizedBox(height: 18),
 
-                // Stats row
+                // ── Stats row ─────────────────────────────────────────────────
                 Row(children: [
-                  _StatBox('SCORE', _fmt(widget.score),    kColYolk),
-                  _VDiv(),
+                  _StatBox('SCORE', _fmt(widget.score), kColYolk),
+                  _vDivider(),
                   _StatBox('COINS', '💰 ${widget.coins}', kColYolk),
-                  _VDiv(),
-                  _StatBox('BEST',  _fmt(widget.highScore), const Color(0xFF69F0AE)),
+                  _vDivider(),
+                  _StatBox('BEST', _fmt(widget.highScore), const Color(0xFF69F0AE)),
                 ]),
                 const SizedBox(height: 20),
 
-                // Rewarded — Revive (highest RPM)
+                // ── AD BUTTONS (aggressive, professional) ────────────────────
+                // 1. Revive — highest value rewarded ad
                 if (!widget.reviveUsed) ...[
                   _AdBtn(
-                    icon: '📺',
-                    label: 'Watch Ad — Keep Running!',
+                    icon: '📺', label: 'Watch Ad — Keep Running!',
                     sublabel: widget.rewardedReady ? 'Ad ready ✓' : 'Loading ad…',
                     colors: [const Color(0xFFFFD600), const Color(0xFFFF6D00)],
                     textColor: Colors.black,
@@ -125,20 +112,17 @@ class _State extends State<GameOverOverlay> with TickerProviderStateMixin {
                   const SizedBox(height: 10),
                 ],
 
-                // Rewarded — Double Coins
+                // 2. Double coins rewarded
                 _AdBtn(
-                  icon: '📺',
-                  label: 'Watch Ad — Double Coins! 💰',
-                  sublabel: widget.rewardedReady
-                      ? '+${widget.coins} bonus coins'
-                      : 'Loading ad…',
+                  icon: '📺', label: 'Watch Ad — Double Coins! 💰',
+                  sublabel: widget.rewardedReady ? '+${widget.coins} bonus coins' : 'Loading ad…',
                   colors: [const Color(0xFF1B5E20), const Color(0xFF43A047)],
                   textColor: Colors.white,
                   onTap: widget.onDoubleCoins,
                 ),
                 const SizedBox(height: 14),
 
-                // Play Again
+                // 3. Play again (free, but less prominent)
                 GestureDetector(
                   onTap: widget.onRestart,
                   child: Container(
@@ -150,15 +134,14 @@ class _State extends State<GameOverOverlay> with TickerProviderStateMixin {
                     ),
                     child: const Text('🔄  Play Again',
                         textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.white70, fontSize: 15,
-                            fontWeight: FontWeight.w700)),
+                        style: TextStyle(color: Colors.white70, fontSize: 15, fontWeight: FontWeight.w700)),
                   ),
                 ),
                 const SizedBox(height: 10),
                 GestureDetector(
                   onTap: widget.onHome,
-                  child: Text('🏠 Main Menu',
-                      style: TextStyle(color: Colors.white.withOpacity(0.30), fontSize: 13)),
+                  child: const Text('🏠 Main Menu',
+                      style: TextStyle(color: Colors.white30, fontSize: 13)),
                 ),
               ]),
             ),
@@ -167,6 +150,9 @@ class _State extends State<GameOverOverlay> with TickerProviderStateMixin {
       ),
     );
   }
+
+  Widget _vDivider() => Container(width:1, height:40, color:Colors.white.withOpacity(0.10),
+      margin: const EdgeInsets.symmetric(horizontal:8));
 }
 
 class _StatBox extends StatelessWidget {
@@ -181,20 +167,12 @@ class _StatBox extends StatelessWidget {
   ]));
 }
 
-class _VDiv extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) => Container(
-      width: 1, height: 40, color: Colors.white.withOpacity(0.10),
-      margin: const EdgeInsets.symmetric(horizontal: 8));
-}
-
 class _AdBtn extends StatelessWidget {
   final String icon, label, sublabel;
-  final List<Color> colors;
-  final Color textColor;
+  final List<Color> colors; final Color textColor;
   final VoidCallback onTap;
   const _AdBtn({required this.icon, required this.label, required this.sublabel,
-    required this.colors, required this.textColor, required this.onTap});
+      required this.colors, required this.textColor, required this.onTap});
   @override
   Widget build(BuildContext context) => GestureDetector(
     onTap: onTap,
@@ -202,22 +180,18 @@ class _AdBtn extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
       decoration: BoxDecoration(
-        gradient: LinearGradient(colors: colors,
-            begin: Alignment.topLeft, end: Alignment.bottomRight),
+        gradient: LinearGradient(colors: colors, begin: Alignment.topLeft, end: Alignment.bottomRight),
         borderRadius: BorderRadius.circular(14),
-        boxShadow: [BoxShadow(color: colors.last.withOpacity(0.50),
-            blurRadius: 16, offset: const Offset(0, 5))],
+        boxShadow: [BoxShadow(color: colors.last.withOpacity(0.50), blurRadius: 16, offset: const Offset(0,5))],
       ),
       child: Row(children: [
         Text(icon, style: const TextStyle(fontSize: 20)),
         const SizedBox(width: 10),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(label, style: TextStyle(color: textColor, fontSize: 14,
-              fontWeight: FontWeight.w800)),
+          Text(label, style: TextStyle(color: textColor, fontSize: 14, fontWeight: FontWeight.w800)),
           Text(sublabel, style: TextStyle(color: textColor.withOpacity(0.60), fontSize: 11)),
         ])),
-        Icon(Icons.play_circle_filled_rounded,
-            color: textColor.withOpacity(0.75), size: 26),
+        Icon(Icons.play_circle_filled_rounded, color: textColor.withOpacity(0.75), size: 26),
       ]),
     ),
   );
